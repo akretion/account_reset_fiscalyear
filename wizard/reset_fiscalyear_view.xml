@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Module for OpenERP
+  Copyright (C) 2014 Akretion (http://www.akretion.com). All Rights Reserved
+  @author Benoît GUILLOT <benoit.guillot@akretion.com>
+  The licence is in the file __openerp__.py
+-->
+
+<openerp>
+    <data>
+        <record model="ir.ui.view" id="reset_fiscalyear_wizard_view">
+            <field name="name">reset_fiscalyear.wizard.view</field>
+            <field name="model">reset.fiscalyear</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Reset a fiscalyear">
+                    <field name="name" colspan="4"/>
+                    <field name="fiscalyear_id"/>
+                    <field name="journal_id"/>
+                    <field name="force_validate"/>
+                    <field name="close_fiscalyear"/>
+                    <button icon="gtk-cancel" special="cancel" string="Cancel"/>
+                    <button icon="gtk-ok" name="reset_fiscalyear"
+                            string="Reset Fiscalyear" type="object"/>
+                </form>
+            </field>
+        </record>
+
+         <act_window name="Reset fiscalyear"
+            res_model="reset.fiscalyear"
+            src_model="account.fiscalyear"
+            view_mode="form"
+            target="new"
+            key2="client_action_multi"
+            id="action_account_reset_fiscalyear"/>
+
+    </data>
+</openerp>

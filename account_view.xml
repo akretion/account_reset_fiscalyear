@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Module for OpenERP
+  Copyright (C) 2014 Akretion (http://www.akretion.com). All Rights Reserved
+  @author Benoît GUILLOT <benoit.guillot@akretion.com>
+  The licence is in the file __openerp__.py
+-->
+
+<openerp>
+    <data>
+
+    <menuitem
+        action="action_account_reset_fiscalyear"
+        id="menu_account_reset_fiscalyear"
+        parent="account.menu_account_end_year_treatments"
+        sequence="100"/>
+
+    </data>
+</openerp>
