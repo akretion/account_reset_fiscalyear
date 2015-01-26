@@ -83,8 +83,8 @@ class account_fiscalyear(orm.Model):
         reconcile_obj = self.pool['account.move.reconcile']
         if context is None:
             context = {}
+        _logger.info('Start reset fiscal year')
         #avoid write off
-        _logger.info('start reset fiscalyear')
         context['fy_closing'] = True
         context['no_fields_compute'] = True
         context['no_move_check'] = True
@@ -142,7 +142,7 @@ class account_fiscalyear(orm.Model):
         move_id = move_obj.create(cr, uid, move_vals, context=context)
         _logger.info('Validate balance move')
         move_obj.button_validate(cr, uid, [move_id], context=context)
-        move = move_obj.browse(cr, uid, 43140, context=context)
+        move = move_obj.browse(cr, uid, move_id, context=context)
         total_reconcile = len(move.line_id)
         current = 0
         error = []
@@ -166,9 +166,9 @@ class account_fiscalyear(orm.Model):
                      ('date', '<=', fiscalyear.date_stop),
                      ('account_id', '=', line.account_id.id),
                      ('partner_id', '=', False)], context=context)
-                    _logger.info(
-                        'Reconcile %s move lines : %s/%s',
-                        len(reconcile_line_ids), current, total_account)
+            _logger.info(
+                'Reconcile %s move lines : %s/%s',
+                len(reconcile_line_ids), current, total_account)
             if reconcile_line_ids:
                 reconcile_line_ids.append(line.id)
                 try:
@@ -180,12 +180,11 @@ class account_fiscalyear(orm.Model):
             _logger.info('Close fiscal year')
             fiscalyear_ids = self.search(
                 cr, uid,
-                [('date_stop', '<=', fiscayear.date_stop),
+                [('date_stop', '<=', fiscalyear.date_stop),
                  ('state', '=', 'draft')],
                 context=context)
             self.close_fiscalyear(cr, uid, fiscalyear_ids, context=context)
         _logger.info('End reset fiscal year')
-        import pdb; pdb.set_trace()
         return True
 
 
@@ -201,3 +200,14 @@ class account_move_line(orm.Model):
         return super(account_move_line, self).write(
             cr, uid, ids, vals, context=context, check=check,
             update_check=update_check)
+
+
+class account_invoice(orm.Model):
+    _inherit = "account.invoice"
+
+    def _store_set_values(self, cr, uid, ids, fields, context):
+        if context is None:
+           context = {}
+        if context.get('no_fields_compute') or context.get('no_store_function'):
+            return True
+        return super(account_invoice, self)._store_set_values(cr, uid, ids, fields, context)
