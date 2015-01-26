@@ -24,6 +24,8 @@ from openerp.osv import fields, orm
 from datetime import datetime
 from openerp.tools import DEFAULT_SERVER_DATE_FORMAT
 from openerp.tools.translate import _
+import logging
+_logger = logging.getLogger(__name__)
 
 
 class account_fiscalyear(orm.Model):
@@ -82,7 +84,10 @@ class account_fiscalyear(orm.Model):
         if context is None:
             context = {}
         #avoid write off
+        _logger.info('start reset fiscalyear')
         context['fy_closing'] = True
+        context['no_fields_compute'] = True
+        context['no_move_check'] = True
         period_id = period_obj.find(cr, uid, fiscalyear.date_stop,
                                     context=context)[0]
         self._check_previous_moves(
@@ -129,29 +134,14 @@ class account_fiscalyear(orm.Model):
             else:
                 line_vals['debit'] = - balance['sum']
             lines.append((0, 0, line_vals))
-            print '%s/%s' % (current, total_account)
+            _logger.info(
+                'Create balance move line: %s/%s',
+                current, total_account)
         move_vals['line_id'] = lines
-#        move_id = move_obj.create(cr, uid, move_vals, context=context)
-#        print 'new move', move_id
-        print 'validate new account move'
-#        move_obj.button_validate(cr, uid, [move_id], context=context)
-        print 'end validate new move'
-#        reconcile_account_ids = account_obj.search(
-#            cr, uid, [('reconcile', '=', True)], context=context)
-#        current = 0
-#        total_reconcile = len(reconcile_account_ids)
-#        for reconcile_account_id in reconcile_account_ids:
-#            current += 1
-#            reconcile_line_ids = line_obj.search(
-#                cr, uid,
-#                [('reconcile_id', '=', False),
-#                 ('date', '<=', fiscalyear.date_stop),
-#                 ('account_id', '=', reconcile_account_id)], context=context)
-#            print 'account', reconcile_account_id
-#            print 'reconcile_ids', len(reconcile_line_ids)
-#            print '%s/%s' % (current, total_reconcile)
-#            if reconcile_line_ids:
-#                line_obj.reconcile(cr, uid, reconcile_line_ids, context=context)
+        _logger.info('Create balance move')
+        move_id = move_obj.create(cr, uid, move_vals, context=context)
+        _logger.info('Validate balance move')
+        move_obj.button_validate(cr, uid, [move_id], context=context)
         move = move_obj.browse(cr, uid, 43140, context=context)
         total_reconcile = len(move.line_id)
         current = 0
@@ -176,22 +166,38 @@ class account_fiscalyear(orm.Model):
                      ('date', '<=', fiscalyear.date_stop),
                      ('account_id', '=', line.account_id.id),
                      ('partner_id', '=', False)], context=context)
-            print 'account', line.account_id.id
-            print 'reconcile_ids', len(reconcile_line_ids)
-            print '%s/%s' % (current, total_reconcile)
+                    _logger.info(
+                        'Reconcile %s move lines : %s/%s',
+                        len(reconcile_line_ids), current, total_account)
             if reconcile_line_ids:
                 reconcile_line_ids.append(line.id)
                 try:
-                    line_obj.reconcile(cr, uid, reconcile_line_ids, context=context)
+                    line_obj.reconcile(
+                        cr, uid, reconcile_line_ids, context=context)
                 except Exception, e:
-                    error.append(e)
+                    error.append({e: reconcile_line_ids})
         if close_fiscalyear:
+            _logger.info('Close fiscal year')
             fiscalyear_ids = self.search(
                 cr, uid,
                 [('date_stop', '<=', fiscayear.date_stop),
                  ('state', '=', 'draft')],
                 context=context)
             self.close_fiscalyear(cr, uid, fiscalyear_ids, context=context)
-        print 'end reset fiscalyear'
+        _logger.info('End reset fiscal year')
         import pdb; pdb.set_trace()
         return True
+
+
+class account_move_line(orm.Model):
+    _inherit = "account.move.line"
+
+    def write(self, cr, uid, ids, vals, context=None, check=True, update_check=True):
+        """ Override the write of set check = False otherwise reconcile takes too much time."""
+        if context is None:
+            context = {}
+        if context.get('no_move_check') or context.get('no_store_function'):
+            check = False
+        return super(account_move_line, self).write(
+            cr, uid, ids, vals, context=context, check=check,
+            update_check=update_check)
